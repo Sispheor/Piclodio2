@@ -1,6 +1,6 @@
 import subprocess
 import re
-
+import os
 
 class Crontab:
     """
@@ -15,104 +15,22 @@ class Crontab:
         self.command = "echo test"
         self.comment = "piclodio"
 
-    def create(self):
-        """add line to the crontab"""
-        # get actual crontab
-        mycron = self.__getactualcrontab()
-        # add the new line the the end
-        line = str(self.minute)+" "+str(self.hour)+" * * "+str(self.period)+" "+str(self.command)+" >/dev/null 2>&1 #"+str(self.comment)
-        mycron.append(line)
-        # write it in a temp file
-        f = open("/tmp/newcron.txt", "w")
-        for line in mycron:
-            f.write(line)
-            f.write('\n')
-
-        f.close()
-        # write the crontab
-        self.__writecrontab()
-
-    def disable(self):
-        """ disable from the crontab. Commeent the line into the crontab """
-        # get actual crontab
-        mycron = self.__getactualcrontab()
-
-        # open temp file
-        f = open("/tmp/newcron.txt", "w")
-
-        # locate the line
-        for line in mycron:
-            if self.comment in line:
-                if self.__isenable():
-                    commentedline = "# "+line+"\n"
-                    f.write(commentedline)
-                else:  # allready disable, we do not touch anything
-                    f.write(line)
-            else:
-                f.write(line+"\n")
-
-        # close temp file
-        f.close()
-        # write the crontab
-        self.__writecrontab()
-
-    def enable(self):
-        """ remove comment car ahead the line if present"""
-        # get actual crontab
-        mycron = self.__getactualcrontab()
-
-        # open temp file
-        f = open("/tmp/newcron.txt", "w")
-
-        # locate the line
-        for line in mycron:
-            if self.comment in line:
-                if not self.__isenable():  # check if not already enable
-                    # extract line without comment
-                    indexcomment = line.index('#')
-                    linewithoutcomment = line[indexcomment+2:len(line)]
-                    f.write(linewithoutcomment)
-                else:  # already enable, write line without touch anything
-                    f.write(line)
-
-            else:
-                f.write(line+"\n")
-
-        # close temp file
-        f.close()
-        # write the crontab
-        self.__writecrontab()
-
-    def remove(self):
-        """ Remove the line in the crontab by his comment """
-        # get actual crontab
-        mycron = self.__getactualcrontab()
-        newcron = []
-
-        # locate the line
-        for line in mycron:
-            if self.comment not in line:
-                newcron.append(line)
-                newcron.append('\n')
-
-        # open temp file
-        f = open("/tmp/newcron.txt", "w")
-        for line in newcron:
-            f.write(line)
-        # close temp file
-        f.close()
-        # write the crontab
-        self.__writecrontab()
-
-    def __getactualcrontab(self):
+    def __load(self):
         """ Return a dict of actual crontab """
         # get actual crontab
         p = subprocess.Popen("crontab -l", stdout=subprocess.PIPE, shell=True)
         (output, err) = p.communicate()
         mycron = str(output)
-        return mycron.split("\n")
+        return mycron.splitlines()
 
-    def __writecrontab(self):
+    def __save(self, _newcron):
+        """ Write line in a temp file """
+        f = open("/tmp/newcron.txt", "w")
+        for line in _newcron:
+            f.write(line)
+            f.write(os.linesep)
+        f.close()
+
         """ Write the temp file into the crontab  """
         # save the crontab from the temp file
         p = subprocess.Popen("crontab /tmp/newcron.txt", stdout=subprocess.PIPE, shell=True)
@@ -121,7 +39,7 @@ class Crontab:
     def __isenable(self):
         """ return True id the cron job line is not commented  """
         # get actual crontab
-        mycron = self.__getactualcrontab()
+        mycron = self.__load()
 
         # locate the line
         for line in mycron:
@@ -136,4 +54,66 @@ class Crontab:
                     return True
         return False
 
+    def create(self):
+        """add line to the crontab"""
+        # get actual crontab
+        mycron = self.__load()
 
+        # add the new line the the end
+        line = str(self.minute)+" "+str(self.hour)+" * * "+str(self.period)+" "+str(self.command)+" >/dev/null 2>&1 #"+str(self.comment)
+        mycron.append(line)
+
+        # write the crontab
+        self.__save(mycron)
+
+    def disable(self):
+        """ disable from the crontab. Comment the line into the crontab """
+        # get actual crontab
+        mycron = self.__load()
+
+        newlist = []
+
+        # locate the line
+        for line in mycron:
+            if (self.comment in line) and self.__isenable() :
+                commentedline = "# "+line
+                newlist.append(commentedline)
+            else:
+                newlist.append(line)
+
+        # write the crontab
+        self.__save(newlist)
+
+    def enable(self):
+        """ remove comment car ahead the line if present"""
+        # get actual crontab
+        mycron = self.__load()
+
+        newlist = []
+
+        # locate the line
+        for line in mycron:
+            if (self.comment in line) and (not self.__isenable()) :
+                # extract line without comment
+                indexcomment = line.index('#')
+                linewithoutcomment = line[indexcomment+2:len(line)]
+                newlist.append(linewithoutcomment)
+            else:
+                newlist.append(line)
+
+        # write the crontab
+        self.__save(newlist)
+
+    def remove(self):
+        """ Remove the line in the crontab by his comment """
+        # get actual crontab
+        mycron = self.__load()
+        newlist = []
+
+        # locate the line
+        for line in mycron:
+            if self.comment not in line:
+                newlist.append(line)
+
+        # write the crontab
+        self.__save(newlist)
