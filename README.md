@@ -1,6 +1,8 @@
 Piclodio2
 =========
 
+**This version is not anymore maintained, please take a look to [Piclodio 3](https://github.com/Sispheor/piclodio3)**
+
 Piclodio2 is a web radio player and a also an alarm clock. You can add url stream to complete the collection. Scheduling alarm clock is easy and can be periodic.
 
 ![alt tag](https://raw.github.com/Sispheor/Piclodio2/master/img/piclodio_home.png)
